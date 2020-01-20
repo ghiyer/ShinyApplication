@@ -1,0 +1,62 @@
+---
+title: "Shiny Web Application"
+author: "Gaayathri Iyer"
+date: "1/19/2020"
+output:
+  slidy_presentation: default
+---
+
+## Application
+This is a simple Shiny web application which visualizes the Water Data of Colorado State, USA for better understanding. The application takes inputs like the type of station, county, date and time and renders plots for better visualization. The inputs are inter-dependent, for example, selecting a county will auto populate the dependent fields like date and time. The interactive plots are generated using Plotly.
+
+User can select the input by clicking the inverted triangle. Hovering over the plot will give the details of the data rendered. 
+
+## Data
+Data is in the form of JSON file. Here are the data types and a snapshot of the raw data.
+
+```{r echo=FALSE, message=FALSE}
+library(shiny)
+library(plotly)
+library(ggplot2)
+library(gridExtra)
+
+library(rjson)
+library(jsonlite)
+library(dplyr)
+library(lubridate)
+
+df <- fromJSON("WaterQuality.json") %>% flatten(recursive = TRUE)
+str(df)
+
+```
+``` {r echo=FALSE}
+head(df)
+```
+## Data Cleansing
+As you can see, the data has to be cleansed to remove missing values, unnecessary data and changing the format to human readable format. Here is the cleansed data
+
+```{r echo=FALSE}
+df <- fromJSON("WaterQuality.json") %>% flatten(recursive = TRUE)
+df[is.na(df)] <- "0"
+
+df$amount <- as.numeric(df$amount)
+df <- df %>% filter(county != "0", amount != 0) 
+
+df$dt <- as.POSIXct(df$date_time, format("%Y-%m-%dT%H:%M:%S"), tz = "MST")
+df$tm <- format(df$dt, "%H:%M:%S")
+df$dt <- as.character(date(df$dt))
+
+filteredDF <- df %>% select(station_type, county, amount, date_time, dt, tm)
+head(filteredDF)
+
+```
+
+## Visualization 
+Here is a plot showing the total amount of water dischared for each station type
+```{r echo=FALSE}
+        plotDF <- filteredDF %>% group_by(station_type) %>% summarize(amount = sum(amount))
+        ggplotly(ggplot(plotDF, aes(x=station_type, y=amount/1000, fill=station_type)) + 
+                     geom_bar(stat="identity", color="black") +
+                     ggtitle("Total Discharge by Station Type") + ylab("Amount") + xlab("Station Type"))
+
+```
